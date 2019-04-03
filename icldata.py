@@ -855,10 +855,10 @@ class ICLabelDataset:
                         ])
         self.psd_ind = np.arange(1, 101)
         self.max_grid_plot = 144
-        self.base_url_image = 'labeling.ucsd.edu/images/'
+        self.base_url_image = 'https://labeling.ucsd.edu/images/'
 
         # data url
-        self.base_url_download = 'labeling.ucsd.edu/download/'
+        self.base_url_download = 'https://labeling.ucsd.edu/download/'
         self.feature_train_zip_url = self.base_url_download + 'features.zip'
         self.feature_train_urls = [
             self.base_url_download + 'features_0D1D2D.mat',
