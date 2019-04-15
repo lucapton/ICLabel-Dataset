@@ -864,6 +864,7 @@ class ICLabelDataset:
             self.base_url_download + 'features_0D1D2D.mat',
             self.base_url_download + 'features_PSD_med_var_kurt.mat',
             self.base_url_download + 'features_AutoCorr.mat',
+            self.base_url_download + 'features_ICAChanlocs.mat',
             self.base_url_download + 'features_MI.mat',
         ]
         self.label_train_urls = [
@@ -1345,7 +1346,7 @@ class ICLabelDataset:
         Load the ICL test dataset used in the publication.
         Follows the settings provided during initializations.
         :param process_features: Whether to preprocess/normalize features.
-        :return: (features, labels)
+        :return: (features, labels, channel_features)
         """
 
         # check for files and download if missing
@@ -1355,6 +1356,16 @@ class ICLabelDataset:
         with h5py.File(join(self.datapath, 'features', 'features_testset_full.mat'), 'r') as f:
             features = np.asarray(f['features']).T
             feature_labels = self.__load_matlab_cellstr(f, 'feature_label')
+            channel_features = []
+            for dataset in f['channel_features'].value.flatten():
+                # expand
+                dataset = f[dataset].value.flatten()
+                # expand and format
+                id = f[dataset[0]].value.flatten()
+                chans = [''.join(map(unichr, f[x].value.flatten())) for x in f[dataset[1]].value.flatten()]
+                icamat = f[dataset[2]].value.T
+                # append
+                channel_features.append([id, chans, icamat[:, :3], icamat[:, 3:]])
 
         # load labels
         with open(join(self.datapath, 'labels', 'ICLabels_test.pkl'), 'rb') as f:
@@ -1419,7 +1430,26 @@ class ICLabelDataset:
                 features['handcrafted'] = self.normalize_handcrafted_features(features['handcrafted'],
                                                                               features['ids'][:, 1])
 
-        return features, labels
+        return features, labels, channel_features
+
+    def load_channel_features(self):
+        # load features
+        with h5py.File(join(self.datapath, 'features', 'features_ICAChanlocs.mat'), 'r') as f:
+            ids, chans, xyz, icamats = [], [], [], []
+            for dataset in f['features_out'].value.flatten():
+                # expand
+                dataset = f[dataset].value.flatten()
+                if np.array_equal(dataset, np.zeros(2)):
+                    continue
+                # expand and format
+                ids.append(f[dataset[0]].value.flatten())
+                chans.append([''.join(map(unichr, f[x].value.flatten())) for x in f[dataset[1]].value.flatten()])
+                icamat = f[dataset[2]].value.T
+                xyz.append(icamat[:, :3])
+                icamats.append(icamat[:, 3:])
+
+        return ids, chans, xyz, icamats
+
 
     def load_classifications(self, n_cls, ids=None):
         """
@@ -1554,7 +1584,7 @@ class ICLabelDataset:
             print('Downloading label file {} of {}...'.format(it, len(self.label_train_urls)))
             self._download(url, join(self.datapath, folder, basename(url)))
 
-    def download_trainset_features(self, zip=True):
+    def download_trainset_features(self, zip=False):
         """
         Download features for the ICLabel training set.
         :param zip: If true, downloads the zipped feature files. Otherwise individual files are downloaded.
@@ -1581,8 +1611,11 @@ class ICLabelDataset:
             if not isdir(join(self.datapath, folder)):
                 os.mkdir(join(self.datapath, folder))
             for it, url in enumerate(self.feature_train_urls):
-                print('Downloading feature file {} of {}...'.format(it, len(self.feature_train_urls)))
-                self._download(url, join(self.datapath, 'labels', basename(url)))
+                if isfile(join(self.datapath, 'features', basename(url))):
+                    print('Feature file {} of {} already present. Skipping...'.format(it + 1, len(self.feature_train_urls)))
+                else:
+                    print('Downloading feature file {} of {}...'.format(it + 1, len(self.feature_train_urls)))
+                    self._download(url, join(self.datapath, folder, basename(url)))
 
     def download_testset_cllabels(self):
         """
@@ -1602,7 +1635,7 @@ class ICLabelDataset:
         folder = 'features'
         if not isdir(join(self.datapath, folder)):
             os.mkdir(join(self.datapath, folder))
-        self._download(self.feature_test_urls, join(self.datapath, folder, 'features_testset_full.mat'))
+        self._download(self.feature_test_url, join(self.datapath, folder, 'features_testset_full.mat'))
 
     def download_database(self):
         """
@@ -1644,12 +1677,12 @@ class ICLabelDataset:
                     assert isfile(join(self.datapath, 'features', basename(url))), \
                         'Missing training feature file "' + basename(url) + '" and possibly others. ' \
                         'It is a large download which you may accomplish through calling the method ' \
-                        '"download_testset_features()".'
+                        '"download_trainset_features()".'
             elif val == 'test_labels':
                 if not isfile(join(self.datapath, 'labels', 'ICLabels_test.pkl')):
                     self.download_testset_cllabels()
             elif val == 'test_features':
-                if not isfile(join(self.datapath, 'features', 'features_testset.mat')):
+                if not isfile(join(self.datapath, 'features', 'features_testset_full.mat')):
                     self.download_testset_features()
             elif val == 'database':
                 if not isfile(join(self.datapath, 'labels', 'database.sqlite')):
