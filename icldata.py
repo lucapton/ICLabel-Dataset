@@ -872,7 +872,7 @@ class ICLabelDataset:
             self.base_url_download + 'ICLabels_onlyluca.pkl',
         ]
         self.feature_test_url = self.base_url_download + 'features_testset_full.mat'
-        self.label_train_urls = self.base_url_download + 'ICLabels_test.pkl'
+        self.label_test_url = self.base_url_download + 'ICLabels_test.pkl'
         self.db_url = self.base_url_download + 'anonymized_database.sqlite'
         self.cls_url = self.base_url_download + 'other_classifiers.mat'
 
@@ -1625,7 +1625,7 @@ class ICLabelDataset:
         folder = 'labels'
         if not isdir(join(self.datapath, folder)):
             os.mkdir(join(self.datapath, folder))
-        self._download(self.label_test_urls, join(self.datapath, folder, 'ICLabels_test.pkl'))
+        self._download(self.label_test_url, join(self.datapath, folder, 'ICLabels_test.pkl'))
 
     def download_testset_features(self):
         """
