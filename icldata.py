@@ -923,7 +923,7 @@ class ICLabelDataset:
         # organize info
         if self.transform in (None, 'none'):
             if self.label_type == 'all':
-                file_name = 'ICLabels_all.pkl'
+                file_name = 'ICLabels_experts.pkl'
             elif self.label_type == 'luca':
                 file_name = 'ICLabels_onlyluca.pkl'
             processed_file_name = 'processed_dataset'
