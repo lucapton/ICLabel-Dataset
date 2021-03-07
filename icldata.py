@@ -868,7 +868,7 @@ class ICLabelDataset:
             self.base_url_download + 'features_MI.mat',
         ]
         self.label_train_urls = [
-            self.base_url_download + 'ICLabels_experts.pkl',
+            self.base_url_download + 'ICLabels_expert.pkl',
             self.base_url_download + 'ICLabels_onlyluca.pkl',
         ]
         self.feature_test_url = self.base_url_download + 'features_testset_full.mat'
@@ -923,7 +923,7 @@ class ICLabelDataset:
         # organize info
         if self.transform in (None, 'none'):
             if self.label_type == 'all':
-                file_name = 'ICLabels_experts.pkl'
+                file_name = 'ICLabels_expert.pkl'
             elif self.label_type == 'luca':
                 file_name = 'ICLabels_onlyluca.pkl'
             processed_file_name = 'processed_dataset'
