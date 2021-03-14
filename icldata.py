@@ -40,8 +40,17 @@ class ICLabelDataset:
 
     """
 
-    def __init__(self, features='all', label_type='all', datapath='', n_test_datasets=50, n_val_ics=200, transform='none',
-                 unique=True, do_pca=False, combine_output=False, seed=np.random.randint(0, int(1e5))):
+    def __init__(self,
+                 features='all',
+                 label_type='all',
+                 datapath='',
+                 n_test_datasets=50,
+                 n_val_ics=200,
+                 transform='none',
+                 unique=True,
+                 do_pca=False,
+                 combine_output=False,
+                 seed=np.random.randint(0, int(1e5))):
         """
         Initialize an ICLabelDataset object.
         :param features: The types of features to return.
@@ -985,7 +994,8 @@ class ICLabelDataset:
 
                     features[-1].append(data)
                 features[-1] = np.concatenate(features[-1], axis=0)
-                feature_labels.append(['ID_set', 'ID_ic'] + ['psd_median']*nfreq + ['psd_var']*nfreq + ['psd_kurt']*nfreq)
+                feature_labels.append(['ID_set', 'ID_ic'] + ['psd_median']*nfreq
+                                      + ['psd_var']*nfreq + ['psd_kurt']*nfreq)
             # autocorrelation
             with h5py.File(join(self.datapath, 'features', 'features_AutoCorr.mat'), 'r') as f:
                 print('Loading AutoCorr features...')
@@ -1024,7 +1034,8 @@ class ICLabelDataset:
                 dblabels = [np.stack(x) for x in zip(*dblabels)]
                 # organize labels by image
                 udb = np.unique(dblabels[1], return_inverse=True, axis=0)
-                dblabels = [(dblabels[0][y], dblabels[1][y][0], dblabels[2][y]) for y in (udb[1] == x for x in range(len(udb[0])))]
+                dblabels = [(dblabels[0][y], dblabels[1][y][0], dblabels[2][y])
+                            for y in (udb[1] == x for x in range(len(udb[0])))]
                 label_index = np.stack((x[1] for x in dblabels))
 
             elif self.label_type == 'luca':
@@ -1113,12 +1124,13 @@ class ICLabelDataset:
 
             # rematch with labels
             print('Rematching components and labels...')
-            ind_labeled_labels, ind_labeled_features = self.__match_indices(label_index.astype(np.int),
-                                                                            features[0][feature_inds[0], :2].astype(np.int))
+            ind_labeled_labels, ind_labeled_features = self.__match_indices(
+                label_index.astype(np.int),features[0][feature_inds[0], :2].astype(np.int))
             del label_index
 
             # find topomap duplicates
-            _, duplicate_order = np.unique(features[0][feature_inds[0], 2:742].astype(np.float32), return_inverse=True, axis=0)
+            _, duplicate_order = np.unique(features[0][feature_inds[0], 2:742].astype(np.float32), return_inverse=True,
+                                           axis=0)
             do_sortind = np.argsort(duplicate_order)
             do_sorted = duplicate_order[do_sortind]
             do_indices = np.where(np.diff(np.concatenate(([-1], do_sorted))))[0]
@@ -1135,11 +1147,13 @@ class ICLabelDataset:
             else:
                 dataset['labeled_labels'] = [x[ind_labeled_labels, :] for x in labels]
                 if 'label_cov' in locals():
-                    dataset['labeled_label_covariances'] = [x[ind_labeled_labels, :].astype(np.float32) for x in label_cov]
+                    dataset['labeled_label_covariances'] = [x[ind_labeled_labels, :].astype(np.float32)
+                                                            for x in label_cov]
             dataset['labeled_features'] = index_features(features, ind_labeled_features)
 
             # find equivalent datasets with most samples
-            unlabeled_groups = [x for it, x in enumerate(group2indices) if not np.intersect1d(x, ind_labeled_features).size]
+            unlabeled_groups = [x for it, x in enumerate(group2indices)
+                                if not np.intersect1d(x, ind_labeled_features).size]
             ndata = features[0][feature_inds[0]][:, ind_n_data_points]
             ind_unique_unlabled = [x[ndata[x].argmax()] for x in unlabeled_groups]
             dataset['unlabeled_features'] = index_features(features, ind_unique_unlabled)
@@ -1173,7 +1187,8 @@ class ICLabelDataset:
                                                                      np.isinf(dataset['labeled_features']).any(axis=1)))
             dataset['labeled_features'] = dataset['labeled_features'][labeled_not_nan_inf_index, :]
             if self.label_type == 'database':
-                dataset['labeled_labels'] = [dataset['labeled_labels'][x] for x in np.where(labeled_not_nan_inf_index)[0]]
+                dataset['labeled_labels'] = [dataset['labeled_labels'][x]
+                                             for x in np.where(labeled_not_nan_inf_index)[0]]
             else:
                 dataset['labeled_labels'] = [x[labeled_not_nan_inf_index, :] for x in dataset['labeled_labels']]
                 if 'labeled_label_covariances' in dataset.keys():
@@ -1201,7 +1216,8 @@ class ICLabelDataset:
         """
         Load the ICL dataset where only a fraction of data points are labeled.
         Follows the settings provided during initializations
-        :return: (train set unlabeled, train set labeled, sample test set (unlabeled), validation set (labeled), output labels)
+        :return: (train set unlabeled, train set labeled, sample test set (unlabeled), validation set (labeled),
+            output labels)
         """
 
         rng = np.random.RandomState(seed=self.seed)
@@ -1260,7 +1276,8 @@ class ICLabelDataset:
         # normalize psd_kurt features
         if 'autocorr' in self.features:
             print('Normalizing autocorr features...')
-            icl['unlabeled_features']['autocorr'] = self.normalize_autocorr_features(icl['unlabeled_features']['autocorr'])
+            icl['unlabeled_features']['autocorr'] = self.normalize_autocorr_features(
+                icl['unlabeled_features']['autocorr'])
             icl['labeled_features']['autocorr'] = self.normalize_autocorr_features(icl['labeled_features']['autocorr'])
 
         # normalize dipole features
@@ -1275,8 +1292,8 @@ class ICLabelDataset:
             icl['unlabeled_features']['handcrafted'] = \
                 self.normalize_handcrafted_features(icl['unlabeled_features']['handcrafted'],
                                                icl['unlabeled_features']['ids'][:, 1])
-            icl['labeled_features']['handcrafted'] = \
-                self.normalize_handcrafted_features(icl['labeled_features']['handcrafted'], icl['labeled_features']['ids'][:, 1])
+            icl['labeled_features']['handcrafted'] = self.normalize_handcrafted_features(
+                icl['labeled_features']['handcrafted'], icl['labeled_features']['ids'][:, 1])
 
         # normalize mi features
         if 'mi' in self.features:
@@ -1611,7 +1628,8 @@ class ICLabelDataset:
                 os.mkdir(join(self.datapath, folder))
             for it, url in enumerate(self.feature_train_urls):
                 if isfile(join(self.datapath, 'features', basename(url))):
-                    print('Feature file {} of {} already present. Skipping...'.format(it + 1, len(self.feature_train_urls)))
+                    print('Feature file {} of {} already present. Skipping...'.format(it + 1,
+                                                                                      len(self.feature_train_urls)))
                 else:
                     print('Downloading feature file {} of {}...'.format(it + 1, len(self.feature_train_urls)))
                     self._download(url, join(self.datapath, folder, basename(url)))
