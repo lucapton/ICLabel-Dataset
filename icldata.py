@@ -1450,7 +1450,6 @@ class ICLabelDataset:
 
         return ids, chans, xyz, icamats
 
-
     def load_classifications(self, n_cls, ids=None):
         """
         Load classification of the ICLabel training set by several published and publicly available IC classifiers.
@@ -1463,7 +1462,7 @@ class ICLabelDataset:
         :return: Dictionary of classifications separated by classifier.
         """
         # check inputs
-        assert(n_cls in (2, 3, 5), 'n_cls must be 2, 3, or 5')
+        assert n_cls in (2, 3, 5), 'n_cls must be 2, 3, or 5'
 
         # load raw classifications
         raw = self._load_classifications(ids)
