@@ -1,18 +1,20 @@
 from time import (time, gmtime, strftime)
-import numpy as np
-from sklearn.decomposition import PCA
 import h5py
 import os
 from shutil import rmtree
 from os.path import isdir, isfile, join, basename
 import cPickle as pkl
 import sqlite3
-import joblib
 from collections import OrderedDict
 from copy import copy
+
+import numpy as np
+from sklearn.decomposition import PCA
+import joblib
 from matplotlib import pyplot as plt
 import webbrowser as wb
-import urllib2
+import requests
+import tqdm
 
 
 class ICLabelDataset:
@@ -869,6 +871,8 @@ class ICLabelDataset:
         # data url
         self.base_url_download = 'https://labeling.ucsd.edu/download/'
         self.feature_train_zip_url = self.base_url_download + 'features.zip'
+        self.feature_train_zip_parts_url = self.base_url_download + 'features{:02d}.zip'
+        self.num_feature_train_files = 25
         self.feature_train_urls = [
             self.base_url_download + 'features_0D1D2D.mat',
             self.base_url_download + 'features_PSD_med_var_kurt.mat',
@@ -1567,26 +1571,38 @@ class ICLabelDataset:
             self.load_data()
         self.label_type = urexpert
 
-    # download
+    @staticmethod
+    def _download(url, filename, attempts=3):
+        chunk_size = 256 * 1024
 
-    def _download(self, url, filename):
-        CHUNK = 16 * 1024
-        try:
-            f = urllib2.urlopen(url)
+        for _ in range(attempts):
+            try:
+            # open connection to server
+                with requests.get(url, stream=True) as r:
+                    r.raise_for_status()
+                    total_size_in_bytes = int(r.headers.get('content-length', 0))
+                    # check if file is already downloaded
+                    if os.path.exists(filename) and os.stat(filename).st_size == total_size_in_bytes:
+                        print("File already downloaded. Skipping.")
+                        return
+                    # set up progress bar
+                    with tqdm.tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True) as progress_bar:
+                        # open file for writing
+                        with open(filename, 'wb') as f:
+                            for chunk in r.iter_content(chunk_size=chunk_size):
+                                progress_bar.update(len(chunk))
+                                f.write(chunk)
 
-            # Open our local file for writing
-            with open(filename, 'wb') as local_file:
-                while True:
-                    chunk = f.read(CHUNK)
-                    if not chunk:
-                        break
-                    local_file.write(chunk)
-                print('Done.')
-
-        except urllib2.HTTPError, e:
-            print "HTTP Error:", e.code, url
-        except urllib2.URLError, e:
-            print "URL Error:", e.reason, url
+                        # check that file downloaded completely
+                        if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
+                            raise requests.exceptions.RequestException("Incomplete download.")
+                        else:
+                            break
+            except requests.exceptions.RequestException:
+                pass
+        else:
+            # all attempts failed
+            raise requests.exceptions.RequestException("Download failed.")
 
     def download_trainset_cllabels(self):
         """
@@ -1600,39 +1616,45 @@ class ICLabelDataset:
             print('Downloading label file {} of {}...'.format(it, len(self.label_train_urls)))
             self._download(url, join(self.datapath, folder, basename(url)))
 
-    def download_trainset_features(self, zip=False):
+    def download_trainset_features(self):
         """
         Download features for the ICLabel training set.
-        :param zip: If true, downloads the zipped feature files. Otherwise individual files are downloaded.
         """
-
-        print('Caution: this download is approximately 25GB and requires twice that space on your drive if unzipping!')
         folder = 'features'
+        base_filename = join(self.datapath, folder, 'features')
+        n_files = 25
 
-        if zip:
-            print('Downloading zipped ICLabel training set features...')
-            if not isdir(join(self.datapath, folder)):
-                os.mkdir(join(self.datapath, folder))
-            zip_name = join(self.datapath, folder, 'features.zip')
-            self._download(self.feature_train_zip_url, zip_name)
-            print('Extracting zipped ICLabel training set features...')
-            from zipfile import ZipFile
-            with ZipFile(zip_name) as myzip:
-                myzip.extractall(path=join(self.datapath, folder))
-            print('Deleting zip archive...')
-            os.remove(zip_name)
-
+        # check if files have already been downloaded
+        for it, url in enumerate(self.feature_train_urls):
+            if not isfile(join(self.datapath, folder, basename(url))):
+                break
         else:
-            print('Downloading individual ICLabel training set feature files...')
-            if not isdir(join(self.datapath, folder)):
-                os.mkdir(join(self.datapath, folder))
-            for it, url in enumerate(self.feature_train_urls):
-                if isfile(join(self.datapath, 'features', basename(url))):
-                    print('Feature file {} of {} already present. Skipping...'.format(it + 1,
-                                                                                      len(self.feature_train_urls)))
-                else:
-                    print('Downloading feature file {} of {}...'.format(it + 1, len(self.feature_train_urls)))
-                    self._download(url, join(self.datapath, folder, basename(url)))
+            print('Feature files already downloaded.')
+            return
+        print('Caution: this download is approximately 25GB and requires twice that space on your drive for unzipping!')
+
+        print('Downloading zipped ICLabel training set features...')
+        if not isdir(join(self.datapath, folder)):
+            os.mkdir(join(self.datapath, folder))
+        for it in range(n_files):
+            print('Downloading file part {} of {}...'.format(it + 1, n_files))
+            zip_name = base_filename + '{:02d}.zip'.format(it)
+            self._download(self.feature_train_zip_parts_url.format(it), zip_name)
+
+        print('Combining file parts...')
+        with open(base_filename + '.zip', 'wb') as f:
+            for it in range(n_files):
+                with open(base_filename + '{:02d}.zip'.format(it), 'rb') as f_part:
+                    f.write(f_part.read())
+        for it in range(n_files):
+            os.remove(base_filename + '{:02d}.zip'.format(it))
+
+        print('Extracting zipped ICLabel training set features...')
+        from zipfile import ZipFile
+        with ZipFile(base_filename + '.zip') as myzip:
+            myzip.extractall(path=join(self.datapath, folder))
+        print('Deleting zip archive...')
+        os.remove(base_filename + '.zip')
 
     def download_testset_cllabels(self):
         """
@@ -1677,7 +1699,7 @@ class ICLabelDataset:
     def check_for_download(self, data_type):
         """
         Check if something has been downloaded and, if not, get it.
-        :param data_type: What data to check for. Can be: train_labels, train, features, test_labels, test_features,
+        :param data_type: What data to check for. Can be: train_labels, train_features, test_labels, test_features,
             database, and/or 'classifications'.
         """
 
