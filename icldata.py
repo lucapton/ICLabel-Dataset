@@ -1703,7 +1703,7 @@ class ICLabelDataset:
             database, and/or 'classifications'.
         """
 
-        if '__iter__' not in dir(data_type):
+        if not isinstance(data_type, (tuple, list)):
             data_type = [data_type]
 
         for val in data_type:
