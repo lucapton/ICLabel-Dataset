@@ -16,6 +16,8 @@ The ICLabel dataset contains an unlabeled training dataset, several collections 
 * Equivalent current dipole fits (1 and 2 dipole)
 * Hand crafted features (some new and some from previously published classifiers)
 
+The original time series data are not available. All that is provided is included in this repository as is. I realize having the original time series would make this dataset much more versatile, but unfortunately that's not possible.
+
 ----
 ## Usage
 1. Load the class, passing any desired options.
